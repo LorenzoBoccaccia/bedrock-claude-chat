@@ -45,7 +45,7 @@
 - 下記のコマンドでデプロイ実行します
 
 ```sh
-git clone https://github.com/aws-samples/bedrock-claude-chat.git
+git clone https://github.com/LorenzoBoccaccia/bedrock-claude-chat.git
 cd bedrock-claude-chat
 chmod +x bin.sh
 ./bin.sh
