@@ -56,7 +56,7 @@ export class BedrockChatStack extends cdk.Stack {
     );
 
     const dbConfig = {
-      host: vectorStore.cluster.clusterEndpoint.hostname,
+      host: vectorStore.instance.instanceEndpoint.hostname,
       username: vectorStore.secret
         .secretValueFromJson("username")
         .unsafeUnwrap()
@@ -65,7 +65,7 @@ export class BedrockChatStack extends cdk.Stack {
         .secretValueFromJson("password")
         .unsafeUnwrap()
         .toString(),
-      port: vectorStore.cluster.clusterEndpoint.port,
+      port: vectorStore.instance.instanceEndpoint.port,
       database: vectorStore.secret
         .secretValueFromJson("dbname")
         .unsafeUnwrap()
