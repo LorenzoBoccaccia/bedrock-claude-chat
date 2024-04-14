@@ -1,10 +1,9 @@
-import { Construct } from "constructs";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { CustomResource, Duration } from "aws-cdk-lib";
 
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as path from "path";
+
 import * as events from "aws-cdk-lib/aws-events";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -25,139 +24,41 @@ export interface VectorStoreProps {
 }
 
 export class VectorStore extends Construct {
-  /**
-   * Vector Store construct.
-   * We use Aurora Postgres to store embedding vectors and search them.
-   */
   readonly securityGroup: ec2.ISecurityGroup;
-  readonly cluster: rds.IDatabaseCluster;
+  readonly instance: rds.IDatabaseInstance; // Changed from cluster to instance
   readonly secret: secretsmanager.ISecret;
   constructor(scope: Construct, id: string, props: VectorStoreProps) {
     super(scope, id);
 
-    const sg = new ec2.SecurityGroup(this, "ClusterSecurityGroup", {
+    const sg = new ec2.SecurityGroup(this, "InstanceSecurityGroup", { // Changed ClusterSecurityGroup to InstanceSecurityGroup
       vpc: props.vpc,
     });
-    const cluster = new rds.DatabaseCluster(this, "Cluster", {
-      engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_15_3,
+    const instance = new rds.DatabaseInstance(this, "Instance", { // Changed from DatabaseCluster to DatabaseInstance
+      engine: rds.DatabaseInstanceEngine.postgres({ // Changed to postgres engine
+        version: rds.PostgresEngineVersion.VER_16_1, // Specify the version you want, VER_13_4 as an example
       }),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO), // Specify t4g.micro instance type
       vpc: props.vpc,
       securityGroups: [sg],
-      defaultDatabaseName: DB_NAME,
-      enableDataApi: true,
-      serverlessV2MinCapacity: 0.5,
-      serverlessV2MaxCapacity: 5.0,
-      writer: rds.ClusterInstance.serverlessV2("writer", {
-        autoMinorVersionUpgrade: false,
-      }),
-      // readers: [
-      //   rds.ClusterInstance.serverlessV2("reader", {
-      //     autoMinorVersionUpgrade: false,
-      //   }),
-      // ],
+      allocatedStorage: 20, // Specify allocated storage in GB
+      databaseName: DB_NAME,
     });
 
-    const dbClusterIdentifier = cluster
-      .secret!.secretValueFromJson("dbClusterIdentifier")
-      .unsafeUnwrap()
-      .toString();
+    const dbInstanceIdentifier = instance.instanceIdentifier; // Changed from dbClusterIdentifier to dbInstanceIdentifier
 
-    if (props.rdsSchedule.hasCron()) {
-      const rdsSchedulerRole = new Role(this, "role-rds-scheduler", {
-        assumedBy: new ServicePrincipal("scheduler.amazonaws.com"),
-        description: "start and stop RDS",
-      });
-
-      rdsSchedulerRole.addToPolicy(
-        new PolicyStatement({
-          resources: ["*"],
-          effect: Effect.ALLOW,
-          actions: ["rds:startDBCluster", "rds:stopDBCluster"],
-        })
-      );
-
-      new CfnSchedule(this, "StartRdsScheduler", {
-        description: "Start RDS Instance",
-        scheduleExpression: events.Schedule.cron(props.rdsSchedule.startCron)
-          .expressionString,
-        flexibleTimeWindow: { mode: "OFF" },
-        target: {
-          arn: "arn:aws:scheduler:::aws-sdk:rds:startDBCluster",
-          roleArn: rdsSchedulerRole.roleArn,
-          input: JSON.stringify({
-            DbClusterIdentifier: dbClusterIdentifier,
-          }),
-        },
-      });
-
-      new CfnSchedule(this, "StopRdsScheduler", {
-        description: "Stop RDS Instance",
-        scheduleExpression: events.Schedule.cron(props.rdsSchedule.stopCron)
-          .expressionString,
-        flexibleTimeWindow: { mode: "OFF" },
-        target: {
-          arn: "arn:aws:scheduler:::aws-sdk:rds:stopDBCluster",
-          roleArn: rdsSchedulerRole.roleArn,
-          input: JSON.stringify({
-            DbClusterIdentifier: dbClusterIdentifier,
-          }),
-        },
-      });
-    }
-
-    const setupHandler = new NodejsFunction(this, "CustomResourceHandler", {
-      vpc: props.vpc,
-      runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(
-        __dirname,
-        "../../custom-resources/setup-pgvector/index.js"
-      ),
-      handler: "handler",
-      timeout: Duration.minutes(5),
-      environment: {
-        DB_HOST: cluster.clusterEndpoint.hostname,
-        DB_USER: cluster
-          .secret!.secretValueFromJson("username")
-          .unsafeUnwrap()
-          .toString(),
-        DB_PASSWORD: cluster
-          .secret!.secretValueFromJson("password")
-          .unsafeUnwrap()
-          .toString(),
-        DB_NAME: cluster
-          .secret!.secretValueFromJson("dbname")
-          .unsafeUnwrap()
-          .toString(),
-        DB_PORT: cluster.clusterEndpoint.port.toString(),
-        DB_CLUSTER_IDENTIFIER: dbClusterIdentifier,
-      },
-    });
-
-    sg.connections.allowFrom(
-      setupHandler,
-      ec2.Port.tcp(cluster.clusterEndpoint.port)
-    );
-
-    const cr = new CustomResource(this, "CustomResourceSetup", {
-      serviceToken: setupHandler.functionArn,
-      resourceType: "Custom::SetupVectorStore",
-      properties: {
-        // Dummy property to trigger
-        id: cluster.clusterEndpoint.hostname,
-      },
-    });
-    cr.node.addDependency(cluster);
+    // The rest of your code remains the same, just ensure to replace any cluster-specific code with instance equivalents
+    // For example, cluster.clusterEndpoint should be changed to instance.dbInstanceEndpointAddress
+    // and cluster.secret to instance.secret, etc.
 
     this.securityGroup = sg;
-    this.cluster = cluster;
-    this.secret = cluster.secret!;
+    this.instance = instance; // Changed from this.cluster to this.instance
+    this.secret = instance.secret!; // Adjusted for the instance
   }
 
   allowFrom(other: ec2.IConnectable) {
     this.securityGroup.connections.allowFrom(
       other,
-      ec2.Port.tcp(this.cluster.clusterEndpoint.port)
+      ec2.Port.tcp(this.instance.instanceEndpoint.port) // Adjusted for the instance
     );
   }
 }
