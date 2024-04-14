@@ -230,11 +230,11 @@ export class BedrockChatStack extends cdk.Stack {
       exportName: "BedrockClaudeChatDbConfigSecretArn",
     });
     new CfnOutput(this, "DbConfigHostname", {
-      value: vectorStore.cluster.clusterEndpoint.hostname,
+      value: vectorStore.instance.instanceEndpoint.hostname,
       exportName: "BedrockClaudeChatDbConfigHostname",
     });
     new CfnOutput(this, "DbConfigPort", {
-      value: vectorStore.cluster.clusterEndpoint.port.toString(),
+      value: vectorStore.instance.instanceEndpoint.toString(),
       exportName: "BedrockClaudeChatDbConfigPort",
     });
     new CfnOutput(this, "ConversationTableName", {
