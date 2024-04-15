@@ -19,13 +19,11 @@ import { VectorStore } from "./constructs/vectorstore";
 import { UsageAnalysis } from "./constructs/usage-analysis";
 import { TIdentityProvider, identityProvider } from "./utils/identity-provider";
 import { ApiPublishCodebuild } from "./constructs/api-publish-codebuild";
-import { WebAclForPublishedApi } from "./constructs/webacl-for-published-api";
 import { VpcConfig } from "./api-publishment-stack";
 import { CronScheduleProps, createCronSchedule } from "./utils/cron-schedule";
 
 export interface BedrockChatStackProps extends StackProps {
   readonly bedrockRegion: string;
-  readonly webAclId: string;
   readonly identityProviders: TIdentityProvider[];
   readonly userPoolDomainPrefix: string;
   readonly publishedApiAllowedIpV4AddressRanges: string[];
@@ -91,8 +89,7 @@ export class BedrockChatStack extends cdk.Stack {
     });
 
     const frontend = new Frontend(this, "Frontend", {
-      accessLogBucket,
-      webAclId: props.webAclId,
+      accessLogBucket
     });
 
     const auth = new Auth(this, "Auth", {
@@ -175,16 +172,6 @@ export class BedrockChatStack extends cdk.Stack {
     vectorStore.allowFrom(backendApi.handler);
     vectorStore.allowFrom(websocket.handler);
 
-    // WebAcl for published API
-    const webAclForPublishedApi = new WebAclForPublishedApi(
-      this,
-      "WebAclForPublishedApi",
-      {
-        allowedIpV4AddressRanges: props.publishedApiAllowedIpV4AddressRanges,
-        allowedIpV6AddressRanges: props.publishedApiAllowedIpV6AddressRanges,
-      }
-    );
-
     new CfnOutput(this, "DocumentBucketName", {
       value: documentBucket.bucketName,
     });
@@ -193,10 +180,6 @@ export class BedrockChatStack extends cdk.Stack {
     });
 
     // Outputs for API publication
-    new CfnOutput(this, "PublishedApiWebAclArn", {
-      value: webAclForPublishedApi.webAclArn,
-      exportName: "PublishedApiWebAclArn",
-    });
     new CfnOutput(this, "VpcId", {
       value: vpc.vpcId,
       exportName: "BedrockClaudeChatVpcId",

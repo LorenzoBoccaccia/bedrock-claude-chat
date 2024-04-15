@@ -16,7 +16,7 @@ import { Idp } from "../utils/identity-provider";
 
 export interface FrontendProps {
   readonly accessLogBucket: IBucket;
-  readonly webAclId: string;
+
 }
 
 export class Frontend extends Construct {
@@ -69,7 +69,7 @@ export class Frontend extends Construct {
         bucket: props.accessLogBucket,
         prefix: "Frontend/",
       },
-      webACLId: props.webAclId,
+  
     });
     this.assetBucket = assetBucket;
     this.cloudFrontWebDistribution = distribution;

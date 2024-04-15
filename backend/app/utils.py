@@ -8,8 +8,8 @@ from app.repositories.models.conversation import MessageModel
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
-REGION = os.environ.get("REGION", "us-east-1")
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
+REGION = os.environ.get("REGION", "eu-west-3")
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-3")
 PUBLISH_API_CODEBUILD_PROJECT_NAME = os.environ.get(
     "PUBLISH_API_CODEBUILD_PROJECT_NAME", ""
 )
